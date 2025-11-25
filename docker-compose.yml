@@ -4,7 +4,7 @@ services:
     container_name: qr
     user: 1000:1000
     volumes:
-      - ./codes:/codes
+      - <CODES_DIR>:/codes
     ports:
       - 1010:1010
     restart: 'unless-stopped'
