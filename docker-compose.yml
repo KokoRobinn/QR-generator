@@ -1,0 +1,10 @@
+services:
+  door:
+    image: <USER>/qr:latest
+    container_name: qr
+    user: 1000:1000
+    volumes:
+      - ./codes:/codes
+    ports:
+      - 1010:1010
+    restart: 'unless-stopped'
