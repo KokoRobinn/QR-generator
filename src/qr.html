@@ -1,0 +1,40 @@
+<!-- qr.html -->
+<html>
+    <head>
+        <style>
+            .page {
+                background: #c0c0c0;
+                border: 3px solid #d0d0d0;
+                margin: auto;
+		padding: 10px;
+    	    	width: 50%;
+    	    	height: 100%;
+            }
+
+	    .code {
+		background: #ffffff;
+	        margin: auto;
+		width: 70%;
+		height: 70%;
+	    }
+        </style>
+    </head>
+    
+    <body>
+        <div class="page">
+            {{if .Success}}
+       	        <h1>Enjoy your code</h1>
+		<div class="code">
+       	            <img src={{.File}} alt="Unable to load QR-code" width="80%" height="80%">
+		</div>
+            {{else}}
+                <h1>QR generator (Work in Progress)</h1>
+                <form method="POST">
+                    <label>URL:</label><br />
+                    <input type="text" name="link"><br />
+                    <input type="submit">
+                </form>
+            {{end}}
+        </div>
+    </body>
+</html>
