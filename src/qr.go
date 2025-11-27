@@ -142,10 +142,12 @@ func drawFormatString(code [][]uint8, ecc ECC, mask, end int) {
 	code[8][end - 7] = uint8(0b11) //dark module
 }
 
-func makeQRv3(text string) (error, string) {
-	if len(string) > 53 { 
-		return nil, errors.New("String is too long for version 3")
+func makeQRv3(text string) (string, error) {
+	if len(text) > 53 { 
+		return "", errors.New("String is too long for version 3")
 	}
+	const char_capacity = 53
+	const num_ecc_bytes = 15
 	const width int = 29
 	const end int = 28
 	var code [][]uint8
@@ -156,7 +158,7 @@ func makeQRv3(text string) (error, string) {
 	y_dir := 1
 	var mode uint8 = 4 
 	var l uint8 = uint8(len(text))
-	str := string(l) + text
+	str := string(l) + text + string(make([]byte, char_capacity - len(text)))
 
 	code[end][end]         = mode >> 3
 	code[end - 1][end]     = mode >> 2
@@ -208,7 +210,7 @@ func makeQRv3(text string) (error, string) {
 
 	var file string = uuid.New().String() + ".png"
 	generatePNG(code, end + 1, file)
-	return file, err
+	return file, nil
 }
 
 func main() {
