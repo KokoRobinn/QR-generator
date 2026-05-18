@@ -7,9 +7,7 @@ Making it support all QR versions and ECCs will likely take a while.
 
 ## Setup
 
-Clone the repo and run:
+Clone the repo and run the following, after which you can access the app at port 1010.
 ```
-docker build -t <USER>/qr src/
+docker compose up --build -d
 ```
-Then put the user you entered above in the docker-compose file, as well as the directory where you want your QR codes stored.
-After running `docker compose up` you can access the app at port 1010.

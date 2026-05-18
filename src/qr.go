@@ -64,15 +64,15 @@ func alphaToInt(n Alpha) uint8 {
 func makeECCCode(codeword, generator []uint8, length int) []uint8 {
 	new_generator := make([]uint8, len(generator))
 	new_codeword := make([]uint8, len(codeword))
-	copy(new_codeword, codeword)
 	copy(new_generator, generator)
+	copy(new_codeword, codeword)
 	//assume both start as uint8
 	for ci := 0; ci < len(codeword); ci++ {
-		for gi, g := range generator {
+		for gi, g := range new_generator {
 			new_generator[gi] = alphaToInt(intToAlpha(new_codeword[0]) + intToAlpha(g)%255)
 		}
-		for ngi, ng := range new_generator {
-			new_codeword[ngi] = new_codeword[ngi] ^ ng //XOR with codeword for first iteration
+		for gi, g := range new_generator {
+			new_codeword[gi] = new_codeword[gi] ^ g //XOR with codeword for first iteration
 			if new_codeword[0] == 0 {
 				new_codeword = new_codeword[1:]
 			}
@@ -186,6 +186,7 @@ func makeQRv3(text string) (string, error) {
 	}
 	const char_capacity = 53
 	const num_ecc_bytes = 15
+	var generator_polynomial = [...]uint8{0, 8, 183, 61, 91, 202, 37, 51, 58, 58, 237, 140, 124, 5, 99, 105}
 	const width int = 29
 	const end int = 28
 	var code [][]uint8
@@ -196,7 +197,7 @@ func makeQRv3(text string) (string, error) {
 	y_dir := 1
 	var mode uint8 = 4
 	var l uint8 = uint8(len(text))
-	var ecc []uint8 = makeECCCode([]uint8(string(mode)), []uint8(text), num_ecc_bytes)
+	var ecc []uint8 = makeECCCode([]uint8(text), generator_polynomial[:], num_ecc_bytes)
 	str := string(l) + text + string(ecc) + string(make([]byte, char_capacity-len(text)-len(ecc)))
 
 	code[end][end] = mode >> 3
