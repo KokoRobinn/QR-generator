@@ -1,17 +1,18 @@
 package main
 
 import (
+	"errors"
 	"fmt"
+	"html/template"
 	"image"
 	"image/color"
 	"image/png"
-	"html/template"
-	"net/http"
-	"github.com/google/uuid"
-	"os"
 	"log"
 	"math/bits"
-	"errors"
+	"net/http"
+	"os"
+
+	"github.com/google/uuid"
 )
 
 const CODES_DIR = "/codes/"
@@ -23,23 +24,33 @@ const (
 	Q
 )
 
-var Masks = [8]func(x, y int)bool{
-	func(x, y int)bool{ return (x + y) % 2 == 0 },
-	func(x, y int)bool{ return y % 2 == 0 },
-	func(x, y int)bool{ return x % 3 == 0 },
-	func(x, y int)bool{ return (x + y) % 3 == 0 },
-	func(x, y int)bool{ return (y / 2 + x / 3) % 2 == 0 },
-	func(x, y int)bool{ return ((x * y) % 2) + ((x + y) % 3) == 0 },
-	func(x, y int)bool{ return (((x * y) % 2) + ((x * y) % 3)) % 2 == 0 },
-	func(x, y int)bool{ return (((x + y) % 2) + ((x * y) % 3)) % 2 == 0 },
+var Masks = [8]func(x, y int) bool{
+	func(x, y int) bool { return (x+y)%2 == 0 },
+	func(x, y int) bool { return y%2 == 0 },
+	func(x, y int) bool { return x%3 == 0 },
+	func(x, y int) bool { return (x+y)%3 == 0 },
+	func(x, y int) bool { return (y/2+x/3)%2 == 0 },
+	func(x, y int) bool { return ((x*y)%2)+((x+y)%3) == 0 },
+	func(x, y int) bool { return (((x*y)%2)+((x*y)%3))%2 == 0 },
+	func(x, y int) bool { return (((x+y)%2)+((x*y)%3))%2 == 0 },
 }
 
 func abs(n int) int {
-	if n < 0 { return -n } else { return n }
+	if n < 0 {
+		return -n
+	} else {
+		return n
+	}
 }
 
 func sign(n int) int {
-	if n > 0 { return 1 } else if n < 0 { return -1 } else { return 0 }
+	if n > 0 {
+		return 1
+	} else if n < 0 {
+		return -1
+	} else {
+		return 0
+	}
 }
 
 func intToAlpha(n uint8) Alpha {
@@ -55,14 +66,16 @@ func makeECCCode(codeword, generator []uint8, length int) []uint8 {
 	new_codeword := make([]uint8, len(codeword))
 	copy(new_codeword, codeword)
 	copy(new_generator, generator)
-	//assume both start as uint8 
-	for ci := 0; ci < len(codeword) ; ci++ {
+	//assume both start as uint8
+	for ci := 0; ci < len(codeword); ci++ {
 		for gi, g := range generator {
-			new_generator[gi] = alphaToInt(intToAlpha(new_codeword[0]) + intToAlpha(g) % 255)
+			new_generator[gi] = alphaToInt(intToAlpha(new_codeword[0]) + intToAlpha(g)%255)
 		}
 		for ngi, ng := range new_generator {
-			new_codeword[ngi] = new_codeword[ngi] ^ ng //XOR with codeword for first iteration 
-			if new_codeword[0] == 0 { new_codeword = new_codeword[1:] }
+			new_codeword[ngi] = new_codeword[ngi] ^ ng //XOR with codeword for first iteration
+			if new_codeword[0] == 0 {
+				new_codeword = new_codeword[1:]
+			}
 		}
 	}
 	return new_codeword[0:length]
@@ -74,62 +87,62 @@ func generatePNG(code [][]uint8, w int, file_name string) {
 	img := image.NewGray(image.Rect(0, 0, width, width))
 	for x := 0; x < width; x++ {
 		for y := 0; y < width; y++ {
-			img.Set(x, y, color.Gray{^(uint8(code[x / scale][y / scale] & 1) & 1 * 255)})
+			img.Set(x, y, color.Gray{^(uint8(code[x/scale][y/scale]&1) & 1 * 255)})
 		}
 	}
 
 	file, err := os.Create(CODES_DIR + file_name)
- 	if err != nil {
-  		log.Fatalf("Error creating file: %v", err)
- 	}
- 	defer file.Close()
+	if err != nil {
+		log.Fatalf("Error creating file: %v", err)
+	}
+	defer file.Close()
 
 	if err := png.Encode(file, img); err != nil {
-  		log.Fatalf("Error encoding image: %v", err)
- 	}
+		log.Fatalf("Error encoding image: %v", err)
+	}
 	return
 }
 
-//draws a rectangle from (xs, ys) to (xd, yd)(exclusive), horizontally first, from index 0 in ´values´
-func drawRect(code [][]uint8, values []uint8, xs, ys, xd, yd int) { 
+// draws a rectangle from (xs, ys) to (xd, yd)(exclusive), horizontally first, from index 0 in ´values´
+func drawRect(code [][]uint8, values []uint8, xs, ys, xd, yd int) {
 	x_dir := sign(xd - xs)
 	y_dir := sign(yd - ys)
 	l := len(values)
 	draws := 0
 	for x := xs; x != xd; x += x_dir {
 		for y := ys; y != yd; y += y_dir {
-			fmt.Printf("drawRect drawing %b at: (%d, %d); stops at: (%d, %d); moving in direction: (%d, %d)\n", values[draws % l], x, y, xd, yd, x_dir, y_dir)
-			code[x][y] = values[draws % l]
+			fmt.Printf("drawRect drawing %b at: (%d, %d); stops at: (%d, %d); moving in direction: (%d, %d)\n", values[draws%l], x, y, xd, yd, x_dir, y_dir)
+			code[x][y] = values[draws%l]
 			draws++
 		}
-	} 
+	}
 	return
 }
 
-//draws an orientation square with (x, y) being the top left corner
+// draws an orientation square with (x, y) being the top left corner
 func drawOrientationSquare(code [][]uint8, x, y int) {
-	drawRect(code, []uint8{0b11}[:], x    , y    , x + 7, y + 7)
-	drawRect(code, []uint8{0b10}[:], x + 1, y + 1, x + 6, y + 6)
-	drawRect(code, []uint8{0b11}[:], x + 2, y + 2, x + 5, y + 5)
-	return	
+	drawRect(code, []uint8{0b11}[:], x, y, x+7, y+7)
+	drawRect(code, []uint8{0b10}[:], x+1, y+1, x+6, y+6)
+	drawRect(code, []uint8{0b11}[:], x+2, y+2, x+5, y+5)
+	return
 }
 
-//draws an alignment square with (x, y) being the top left corner
+// draws an alignment square with (x, y) being the top left corner
 func drawAlignmentSquare(code [][]uint8, x, y int) {
-	drawRect(code, []uint8{0b11}[:], x    , y    , x + 5, y + 5)
-	drawRect(code, []uint8{0b10}[:], x + 1, y + 1, x + 4, y + 4)
-	code[x + 2][y + 2] = 0b11
+	drawRect(code, []uint8{0b11}[:], x, y, x+5, y+5)
+	drawRect(code, []uint8{0b10}[:], x+1, y+1, x+4, y+4)
+	code[x+2][y+2] = 0b11
 	return
 }
 
-//draws the two timing lines present between orientation squares
+// draws the two timing lines present between orientation squares
 func drawTimingLines(code [][]uint8, end int) {
-	drawRect(code, []uint8{0b11, 0b10}[:], 8, 6, end - 7, 7)
-	drawRect(code, []uint8{0b11, 0b10}[:], 6, 8, 7, end - 7)
+	drawRect(code, []uint8{0b11, 0b10}[:], 8, 6, end-7, 7)
+	drawRect(code, []uint8{0b11, 0b10}[:], 6, 8, 7, end-7)
 	return
 }
 
-//makes a uint8 array for writing to ´code´ using QRs whacky formula
+// makes a uint8 array for writing to ´code´ using QRs whacky formula
 func makeFormatString(ecc uint8, mask int) []uint8 {
 	var generator_polynomial uint = 0b10100110111
 	base_format := uint(((int(ecc) << 3) | mask) << 10)
@@ -141,7 +154,7 @@ func makeFormatString(ecc uint8, mask int) []uint8 {
 		format = polynomial ^ format
 		fmt.Printf("format is currently %b\n", format)
 	}
-	format = format << (10 - bits.Len(format)) //make sure format is 10 bits long 
+	format = format << (10 - bits.Len(format))          //make sure format is 10 bits long
 	format = (format | base_format) ^ 0b101010000010010 //spec says to XOR with this string
 	fmt.Printf("Final format is: %d; %b\n", format, format)
 	var format_arr [15]uint8
@@ -155,20 +168,20 @@ func makeFormatString(ecc uint8, mask int) []uint8 {
 	return format_arr[:]
 }
 
-//draws the format string generated by makeFormatString
+// draws the format string generated by makeFormatString
 func drawFormatString(code [][]uint8, ecc uint8, mask, end int) {
 	var format []uint8 = makeFormatString(ecc, mask)
-	drawRect(code, format[0:6], 8, 0, 9, 6) //right of top-left orientationsquare
-	drawRect(code, format[6:8], 8, 7, 9, 9) //corner of top-left orientationsquare
-	code[7][8] = format[8] //corner of top-left orientationsquare
-	drawRect(code, format[9: ], 5, 8, -1, 9) // bottom of top-left orientationsquare
-	drawRect(code, format[0:8], end, 8, end - 8, 9) // bottom of top-right orientationsquare
-	drawRect(code, format[8: ], 8, end - 6, 9, end + 1) // right of bottom-left orientationsquare
-	code[8][end - 7] = uint8(0b11) //dark module
+	drawRect(code, format[0:6], 8, 0, 9, 6)        //right of top-left orientationsquare
+	drawRect(code, format[6:8], 8, 7, 9, 9)        //corner of top-left orientationsquare
+	code[7][8] = format[8]                         //corner of top-left orientationsquare
+	drawRect(code, format[9:], 5, 8, -1, 9)        // bottom of top-left orientationsquare
+	drawRect(code, format[0:8], end, 8, end-8, 9)  // bottom of top-right orientationsquare
+	drawRect(code, format[8:], 8, end-6, 9, end+1) // right of bottom-left orientationsquare
+	code[8][end-7] = uint8(0b11)                   //dark module
 }
 
 func makeQRv3(text string) (string, error) {
-	if len(text) > 53 { 
+	if len(text) > 53 {
 		return "", errors.New("String is too long for version 3")
 	}
 	const char_capacity = 53
@@ -178,51 +191,58 @@ func makeQRv3(text string) (string, error) {
 	var code [][]uint8
 	code = make([][]uint8, width)
 	for i := 0; i < width; i++ {
- 		code[i] = make([]uint8, width)
+		code[i] = make([]uint8, width)
 	}
 	y_dir := 1
-	var mode uint8 = 4 
+	var mode uint8 = 4
 	var l uint8 = uint8(len(text))
-	str := string(l) + text + string(make([]byte, char_capacity - len(text)))
+	str := string(l) + text + string(make([]byte, char_capacity-len(text)))
 
-	code[end][end]         = mode >> 3
-	code[end - 1][end]     = mode >> 2
-	code[end][end - 1]     = mode >> 1
-	code[end - 1][end - 1] = mode >> 0
+	code[end][end] = mode >> 3
+	code[end-1][end] = mode >> 2
+	code[end][end-1] = mode >> 1
+	code[end-1][end-1] = mode >> 0
 
 	drawFormatString(code, L, 4, end)
-	
+
 	//separators
-	drawRect(code, []uint8{0b10}[:], 0, 0, 8, 8) 
-	drawRect(code, []uint8{0b10}[:], width - 8, 0, width, 8)
-	drawRect(code, []uint8{0b10}[:], 0, width - 8, 8, width)
-	
+	drawRect(code, []uint8{0b10}[:], 0, 0, 8, 8)
+	drawRect(code, []uint8{0b10}[:], width-8, 0, width, 8)
+	drawRect(code, []uint8{0b10}[:], 0, width-8, 8, width)
+
 	drawOrientationSquare(code, 0, 0)
-	drawOrientationSquare(code, width - 7, 0)
-	drawOrientationSquare(code, 0, width - 7)
+	drawOrientationSquare(code, width-7, 0)
+	drawOrientationSquare(code, 0, width-7)
 
 	drawTimingLines(code, end)
-	
+
 	drawAlignmentSquare(code, 20, 20)
 
 	x_offset := 0
 	y_offset := 2
-	var bit_index uint8 = 8 
+	var bit_index uint8 = 8
 	char_index := 0
 
 	for {
-		if char_index == len(str) {break}
+		if char_index == len(str) {
+			break
+		}
 		for i := 0; i < 2; i++ {
 			//fmt.Fprint(os.Stdout, "x offset is ", x_offset, "\n")
 			//fmt.Fprint(os.Stdout, "y offset is ", y_offset, "\n")
 			//fmt.Fprint(os.Stdout, "i is ", i, "\n")
 			//fmt.Fprint(os.Stdout, "char index is ", char_index, "\n")
-			if char_index == len(str) {break}
-			if code[end - x_offset - i][end - y_offset] & 0b10 == 0 {
-				bit_index -= 1
-				code[end - x_offset - i][end - y_offset] = (str[char_index] >> bit_index) & 1
+			if char_index == len(str) {
+				break
 			}
-			if bit_index == 0 {bit_index = 8; char_index += 1}
+			if code[end-x_offset-i][end-y_offset]&0b10 == 0 {
+				bit_index -= 1
+				code[end-x_offset-i][end-y_offset] = (str[char_index] >> bit_index) & 1
+			}
+			if bit_index == 0 {
+				bit_index = 8
+				char_index += 1
+			}
 		}
 
 		y_offset += y_dir
@@ -231,17 +251,17 @@ func makeQRv3(text string) (string, error) {
 			y_offset += y_dir
 			x_offset += 2
 		}
-	}  
+	}
 
 	var file string = uuid.New().String() + ".png"
-	generatePNG(code, end + 1, file)
+	generatePNG(code, end+1, file)
 	return file, nil
 }
 
 func main() {
-    	tmpl := template.Must(template.ParseFiles("qr.html"))
+	tmpl := template.Must(template.ParseFiles("qr.html"))
 
-	http.HandleFunc("/", func (w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			//fmt.Fprint(w, r.Host)
 			tmpl.Execute(w, nil)
@@ -257,9 +277,12 @@ func main() {
 			tmpl.Execute(w, nil)
 			return
 		}
-		fmt.Fprint(os.Stdout, "serving code: ", CODES_DIR + file, "\n")
+		fmt.Fprint(os.Stdout, "serving code: ", CODES_DIR+file, "\n")
 
-		tmpl.Execute(w, struct{ Success bool; File string }{ true, CODES_DIR + file })
+		tmpl.Execute(w, struct {
+			Success bool
+			File    string
+		}{true, CODES_DIR + file})
 		//http.Redirect(w, r, CODES_DIR + file, http.StatusSeeOther)
 	})
 
